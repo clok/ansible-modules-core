@@ -36,6 +36,11 @@ options:
       - set the user's password
     required: false
     default: null
+  password_hash:
+    description:
+      - set the user's password hash (used in place of plain text password)
+    required: false
+    default: null
   host:
     description:
       - the 'host' part of the MySQL username
@@ -144,6 +149,7 @@ password=n<_665{vS43y
 import ConfigParser
 import getpass
 import tempfile
+import string
 try:
     import MySQLdb
 except ImportError:
@@ -161,25 +167,47 @@ def user_exists(cursor, user, host):
     return count[0] > 0
 
 def user_add(cursor, user, host, password, new_priv):
-    cursor.execute("CREATE USER %s@%s IDENTIFIED BY %s", (user,host,password))
+    if password and not password_hash:
+        cursor.execute("CREATE USER %s@%s IDENTIFIED BY %s", (user,host,password))
+    elif password_hash:
+        cursor.execute("CREATE USER %s@%s IDENTIFIED BY PASSWORD %s", (user,host,password_hash))
     if new_priv is not None:
         for db_table, priv in new_priv.iteritems():
             privileges_grant(cursor, user,host,db_table,priv)
     return True
+
+def is_hash(password):
+    ishash = False
+    if len(password) is 41 and password[0] is '*':
+        ishash = True
+        for i in password[1:]:
+            if i not in string.hexdigits:
+                ishash = False
+                break 
+    return ishash
 
 def user_mod(cursor, user, host, password, new_priv, append_privs):
     changed = False
     grant_option = False
 
     # Handle passwords.
-    if password is not None:
+    if password is not None or password_hash is not None:
         cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
         current_pass_hash = cursor.fetchone()
-        cursor.execute("SELECT PASSWORD(%s)", (password,))
-        new_pass_hash = cursor.fetchone()
-        if current_pass_hash[0] != new_pass_hash[0]:
-            cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user,host,password))
-            changed = True
+
+        if password:
+            cursor.execute("SELECT PASSWORD(%s)", (password,))
+            new_pass_hash = cursor.fetchone()
+            if current_pass_hash[0] != new_pass_hash[0]:
+                cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user,host,password))
+                changed = True
+        elif password_hash:
+            if is_hash(password_hash):
+                if current_pass_hash[0] != password_hash:
+                    cursor.execute("SET PASSWORD FOR %s@%s = %s", (user, host, password_hash))
+                    changed = True
+            else:
+                module.fail_json(msg="password_hash was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")
 
     # Handle privileges.
     if new_priv is not None:
@@ -404,6 +432,7 @@ def main():
             login_unix_socket=dict(default=None),
             user=dict(required=True, aliases=['name']),
             password=dict(default=None),
+            password_hash=dict(default=None),
             host=dict(default="localhost"),
             state=dict(default="present", choices=["absent", "present"]),
             priv=dict(default=None),
@@ -413,6 +442,7 @@ def main():
     )
     user = module.params["user"]
     password = module.params["password"]
+    password_hash = module.params["password_hash"]
     host = module.params["host"]
     state = module.params["state"]
     priv = module.params["priv"]
@@ -459,11 +489,11 @@ def main():
 
     if state == "present":
         if user_exists(cursor, user, host):
-            changed = user_mod(cursor, user, host, password, priv, append_privs)
+            changed = user_mod(cursor, user, host, password, password_hash, priv, append_privs)
         else:
-            if password is None:
-                module.fail_json(msg="password parameter required when adding a user")
-            changed = user_add(cursor, user, host, password, priv)
+            if password is None and password_hash is None:
+                module.fail_json(msg="password or password_hash parameter required when adding a user")
+            changed = user_add(cursor, user, host, password, password_hash, priv)
     elif state == "absent":
         if user_exists(cursor, user, host):
             changed = user_delete(cursor, user, host)

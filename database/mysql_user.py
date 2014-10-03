@@ -186,7 +186,7 @@ def is_hash(password):
                 break 
     return ishash
 
-def user_mod(cursor, user, host, password, new_priv, append_privs):
+def user_mod(cursor, user, host, password, password_hash, new_priv, append_privs):
     changed = False
     grant_option = False
 

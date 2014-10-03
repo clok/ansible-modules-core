@@ -166,7 +166,7 @@ def user_exists(cursor, user, host):
     count = cursor.fetchone()
     return count[0] > 0
 
-def user_add(cursor, user, host, password, new_priv):
+def user_add(cursor, user, host, password, password_hash, new_priv):
     if password and not password_hash:
         cursor.execute("CREATE USER %s@%s IDENTIFIED BY %s", (user,host,password))
     elif password_hash:

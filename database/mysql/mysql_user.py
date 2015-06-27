@@ -215,6 +215,19 @@ def connect(module, login_user=None, login_password=None, config_file=''):
     db_connection = MySQLdb.connect(**config)
     return db_connection.cursor()
 
+def supports_set_password(cursor):
+    cursor.execute("SELECT VERSION()");
+    result = cursor.fetchone()
+    version_str = result[0]
+    version = version_str.split('.')
+
+    print (version)
+    
+    if int(version[0]) <= 5 && int(version[1]) < 7
+      return True
+    else
+      return False
+
 def user_exists(cursor, user, host):
     cursor.execute("SELECT count(*) FROM user WHERE user = %s AND host = %s", (user,host))
     count = cursor.fetchone()
@@ -244,6 +257,8 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     changed = False
     grant_option = False
 
+    supports_set_password(cursor)
+    
     # Handle clear text and hashed passwords.
     if password is not None or encrypted is not None:
         cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))

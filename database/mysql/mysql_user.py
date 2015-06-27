@@ -271,16 +271,22 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
             if current_pass_hash[0] != new_pass_hash[0]:
                 # This query will detect the Sub Version of the MySQL server
                 # that will be modified. It will not consider Major Versions.
-                # If/When MySQL bumps Major Versions, this will break. 
-                cursor.execute("SET @subversion := (SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(VERSION(), '.', 2), '.', -1)); SELECT CASE WHEN @subversion > 6 THEN ALTER USER %s@%s IDENTIFIED BY %s; ELSE SET PASSWORD FOR %s@%s = PASSWORD(%s); END;", (user, host, password, user, host, password))
+                # If/When MySQL bumps Major Versions, this will break.
+                if supports_set_password(cursor):
+                    cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))
+                else:
+                    cursor.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
                 changed = True
         elif encrypted:
             if is_hash(encrypted):
                 if current_pass_hash[0] != encrypted:
                     # This query will detect the Sub Version of the MySQL server
                     # that will be modified. It will not consider Major Versions.
-                    # If/When MySQL bumps Major Versions, this will break. 
-                    cursor.execute("SET @subversion := (SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(VERSION(), '.', 2), '.', -1)); SELECT CASE WHEN @subversion > 6 THEN ALTER USER %s@%s IDENTIFIED WITH mysql_native_password AS %s; ELSE SET PASSWORD FOR %s@%s = %s; END;", (user, host, encrypted, user, host, encrypted))
+                    # If/When MySQL bumps Major Versions, this will break.
+                    if supports_set_password(cursor):
+                        cursor.execute("SET PASSWORD FOR %s@%s = %s", (user, host, encrypted, user, host, encrypted))
+                    else:
+                        cursor.execute("ALTER USER %s@%s IDENTIFIED WITH mysql_native_password AS %s", (user, host, encrypted))
                     changed = True
             else:
                 module.fail_json(msg="encrypted was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")

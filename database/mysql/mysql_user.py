@@ -221,9 +221,10 @@ def supports_set_password(cursor):
     version_str = result[0]
     version = version_str.split('.')
 
-    print (version)
+    print result
+    print version
     
-    if int(version[0]) <= 5 && int(version[1]) < 7
+    if int(version[0]) <= 5 and int(version[1]) < 7
       return True
     else
       return False

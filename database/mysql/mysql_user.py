@@ -220,9 +220,6 @@ def supports_set_password(cursor):
     result = cursor.fetchone()
     version_str = result[0]
     version = version_str.split('.')
-
-    print result
-    print version
     
     if (int(version[0]) <= 5 and int(version[1]) < 7):
       return True

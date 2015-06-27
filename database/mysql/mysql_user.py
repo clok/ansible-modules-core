@@ -226,7 +226,7 @@ def supports_set_password(cursor):
     
     if (int(version[0]) <= 5 and int(version[1]) < 7):
       return True
-    else
+    else:
       return False
 
 def user_exists(cursor, user, host):

@@ -135,7 +135,7 @@ EXAMPLES = """
 - mysql_user: name=bob password=12345 priv=*.*:ALL state=present
 
 # Create database user with name 'bob' and previously hashed mysql native password '*EE0D72C1085C46C5278932678FBE2C6A782821B4' with all database privileges
-- mysql_user: name=bob password='*EE0D72C1085C46C5278932678FBE2C6A782821B4' encrypted=true priv=*.*:ALL state=present
+- mysql_user: name=bob password='*EE0D72C1085C46C5278932678FBE2C6A782821B4' encrypted=yes priv=*.*:ALL state=present
 
 # Creates database user 'bob' and password '12345' with all database privileges and 'WITH GRANT OPTION'
 - mysql_user: name=bob password=12345 priv=*.*:ALL,GRANT state=present
@@ -282,8 +282,12 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
             else:
                 module.fail_json(msg="encrypted was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")
         elif password:
-            cursor.execute("SELECT PASSWORD(%s)", (password,))
-            new_pass_hash = cursor.fetchone()
+            if old_user_mgmt:
+                cursor.execute("SELECT PASSWORD(%s)", (password,))
+                new_pass_hash = cursor.fetchone()
+            else:
+                cursor.execute("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(%s)))))", (password,))
+                new_pass_hash = cursor.fetchone()
             if current_pass_hash[0] != new_pass_hash[0]:
                 if old_user_mgmt:
                     cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))

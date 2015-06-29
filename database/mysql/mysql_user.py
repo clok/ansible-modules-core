@@ -262,7 +262,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     # Handle clear text and hashed passwords.
     if password is not None or encrypted is not None:
         # Determine what user management method server uses
-       old_user_mgmt = server_version_check(cursor)
+        old_user_mgmt = server_version_check(cursor)
 
         if old_user_mgmt:
             cursor.execute("SELECT authentification_string FROM user WHERE user = %s AND host = %s", (user,host))

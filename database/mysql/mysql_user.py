@@ -256,8 +256,6 @@ def is_hash(password):
 def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     changed = False
     grant_option = False
-
-    server_version_check(cursor)
     
     # Handle clear text and hashed passwords.
     if password is not None or encrypted is not None:

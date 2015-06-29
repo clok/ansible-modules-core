@@ -269,16 +269,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
             cursor.execute("SELECT authentication_string FROM user WHERE user = %s AND host = %s", (user,host))
             current_pass_hash = cursor.fetchone()
 
-        if password:
-            cursor.execute("SELECT PASSWORD(%s)", (password,))
-            new_pass_hash = cursor.fetchone()
-            if current_pass_hash[0] != new_pass_hash[0]:
-                if old_user_mgmt:
-                    cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))
-                else:
-                    cursor.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
-                changed = True
-        elif encrypted:
+        if encrypted and password:
             if is_hash(encrypted):
                 if current_pass_hash[0] != encrypted:
                     if old_user_mgmt:
@@ -288,6 +279,15 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
                     changed = True
             else:
                 module.fail_json(msg="encrypted was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")
+        elif password:
+            cursor.execute("SELECT PASSWORD(%s)", (password,))
+            new_pass_hash = cursor.fetchone()
+            if current_pass_hash[0] != new_pass_hash[0]:
+                if old_user_mgmt:
+                    cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))
+                else:
+                    cursor.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
+                changed = True
 
     # Handle privileges
     if new_priv is not None:

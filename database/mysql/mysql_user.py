@@ -267,10 +267,9 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
 
         if old_user_mgmt:
             cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
-            current_pass_hash = cursor.fetchone()
         else:
             cursor.execute("SELECT authentication_string FROM user WHERE user = %s AND host = %s", (user,host))
-            current_pass_hash = cursor.fetchone()
+        current_pass_hash = cursor.fetchone()
 
         if encrypted and password:
             if is_hash(password):
@@ -285,10 +284,9 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
         elif password:
             if old_user_mgmt:
                 cursor.execute("SELECT PASSWORD(%s)", (password,))
-                new_pass_hash = cursor.fetchone()
             else:
                 cursor.execute("SELECT CONCAT('*', UCASE(SHA1(UNHEX(SHA1(%s)))))", (password,))
-                new_pass_hash = cursor.fetchone()
+            new_pass_hash = cursor.fetchone()
             if current_pass_hash[0] != new_pass_hash[0]:
                 if old_user_mgmt:
                     cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))

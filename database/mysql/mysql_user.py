@@ -37,7 +37,7 @@ options:
     default: null
   encrypted:
     description:
-      - Indicated that the 'password' field is a `mysql_native_password` hash
+      - Indicate that the 'password' field is a `mysql_native_password` hash
     required: false
     choices: [ "yes", "no" ]
     default: "no"
@@ -125,6 +125,7 @@ notes:
      without providing any login_user/login_password details. The second must drop a ~/.my.cnf file containing
      the new root credentials. Subsequent runs of the playbook will then succeed by reading the new credentials from
      the file."
+   - Currently, there is only support for the `mysql_native_password` encryted password hash module.
 
 requirements: [ "MySQLdb" ]
 author: "Mark Theunissen (@marktheunissen)"

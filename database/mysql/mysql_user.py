@@ -265,10 +265,10 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
         old_user_mgmt = server_version_check(cursor)
 
         if old_user_mgmt:
-            cursor.execute("SELECT authentification_string FROM user WHERE user = %s AND host = %s", (user,host))
+            cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
             current_pass_hash = cursor.fetchone()
         else:
-            cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
+            cursor.execute("SELECT authentification_string FROM user WHERE user = %s AND host = %s", (user,host))
             current_pass_hash = cursor.fetchone()
 
         if password:

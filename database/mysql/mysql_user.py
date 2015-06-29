@@ -262,9 +262,9 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     # Handle clear text and hashed passwords.
     if password is not None or encrypted is not None:
         # Determine what user management method server uses
-        new_user_mgmt = server_version_check(cursor)
+       old_user_mgmt = server_version_check(cursor)
 
-        if new_user_mgmt:
+        if old_user_mgmt:
             cursor.execute("SELECT authentification_string FROM user WHERE user = %s AND host = %s", (user,host))
             current_pass_hash = cursor.fetchone()
         else:
@@ -275,7 +275,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
             cursor.execute("SELECT PASSWORD(%s)", (password,))
             new_pass_hash = cursor.fetchone()
             if current_pass_hash[0] != new_pass_hash[0]:
-                if new_user_mgmt:
+                if old_user_mgmt:
                     cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))
                 else:
                     cursor.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
@@ -283,7 +283,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
         elif encrypted:
             if is_hash(encrypted):
                 if current_pass_hash[0] != encrypted:
-                    if new_user_mgmt:
+                    if old_user_mgmt:
                         cursor.execute("SET PASSWORD FOR %s@%s = %s", (user, host, encrypted, user, host, encrypted))
                     else:
                         cursor.execute("ALTER USER %s@%s IDENTIFIED WITH mysql_native_password AS %s", (user, host, encrypted))

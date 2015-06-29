@@ -215,6 +215,19 @@ def connect(module, login_user=None, login_password=None, config_file=''):
     db_connection = MySQLdb.connect(**config)
     return db_connection.cursor()
 
+# User Authentication Management was change in MySQL 5.7
+# This is a generic check for if the server version is grater than 5.6
+def server_version_check(cursor):
+    cursor.execute("SELECT VERSION()");
+    result = cursor.fetchone()
+    version_str = result[0]
+    version = version_str.split('.')
+
+    if (int(version[0]) <= 5 and int(version[1]) < 7):
+      return True
+    else:
+      return False
+
 def user_exists(cursor, user, host):
     cursor.execute("SELECT count(*) FROM user WHERE user = %s AND host = %s", (user,host))
     count = cursor.fetchone()
@@ -243,28 +256,35 @@ def is_hash(password):
 def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     changed = False
     grant_option = False
-
+    
     # Handle clear text and hashed passwords.
     if password is not None or encrypted is not None:
-        cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
-        current_pass_hash = cursor.fetchone()
+        # Determine what user management method server uses
+        old_user_mgmt = server_version_check(cursor)
+
+        if old_user_mgmt:
+            cursor.execute("SELECT password FROM user WHERE user = %s AND host = %s", (user,host))
+            current_pass_hash = cursor.fetchone()
+        else:
+            cursor.execute("SELECT authentication_string FROM user WHERE user = %s AND host = %s", (user,host))
+            current_pass_hash = cursor.fetchone()
 
         if password:
             cursor.execute("SELECT PASSWORD(%s)", (password,))
             new_pass_hash = cursor.fetchone()
             if current_pass_hash[0] != new_pass_hash[0]:
-                # This query will detect the Sub Version of the MySQL server
-                # that will be modified. It will not consider Major Versions.
-                # If/When MySQL bumps Major Versions, this will break. 
-                cursor.execute("SET @subversion := (SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(VERSION(), '.', 2), '.', -1)); SELECT CASE WHEN @subversion > 6 THEN ALTER USER %s@%s IDENTIFIED BY %s; ELSE SET PASSWORD FOR %s@%s = PASSWORD(%s); END;", (user, host, password, user, host, password))
+                if old_user_mgmt:
+                    cursor.execute("SET PASSWORD FOR %s@%s = PASSWORD(%s)", (user, host, password))
+                else:
+                    cursor.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
                 changed = True
         elif encrypted:
             if is_hash(encrypted):
                 if current_pass_hash[0] != encrypted:
-                    # This query will detect the Sub Version of the MySQL server
-                    # that will be modified. It will not consider Major Versions.
-                    # If/When MySQL bumps Major Versions, this will break. 
-                    cursor.execute("SET @subversion := (SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(VERSION(), '.', 2), '.', -1)); SELECT CASE WHEN @subversion > 6 THEN ALTER USER %s@%s IDENTIFIED WITH mysql_native_password AS %s; ELSE SET PASSWORD FOR %s@%s = %s; END;", (user, host, encrypted, user, host, encrypted))
+                    if old_user_mgmt:
+                        cursor.execute("SET PASSWORD FOR %s@%s = %s", (user, host, encrypted, user, host, encrypted))
+                    else:
+                        cursor.execute("ALTER USER %s@%s IDENTIFIED WITH mysql_native_password AS %s", (user, host, encrypted))
                     changed = True
             else:
                 module.fail_json(msg="encrypted was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")

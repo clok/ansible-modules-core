@@ -128,7 +128,9 @@ notes:
    - Currently, there is only support for the `mysql_native_password` encryted password hash module.
 
 requirements: [ "MySQLdb" ]
-author: "Mark Theunissen (@marktheunissen)"
+author:
+   - "Mark Theunissen (@marktheunissen)"
+   - "Derek Smith (@clok)"
 '''
 
 EXAMPLES = """

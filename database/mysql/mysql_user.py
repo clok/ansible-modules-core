@@ -247,15 +247,12 @@ def user_add(cursor, user, host, password, encrypted, new_priv):
         for db_table, priv in new_priv.iteritems():
             privileges_grant(cursor, user,host,db_table,priv)
     return True
-
+        
 def is_hash(password):
     ishash = False
-    if len(password) is 41 and password[0] is '*':
-        ishash = True
-        for i in password[1:]:
-            if i not in string.hexdigits:
-                ishash = False
-                break 
+    if len(password) == 41 and password[0] == '*':
+        if frozenset(password[1:]).issubset(string.hexdigits):
+            ishash = True
     return ishash
 
 def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
@@ -263,7 +260,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
     grant_option = False
     
     # Handle clear text and hashed passwords.
-    if password is not None:
+    if bool(password):
         # Determine what user management method server uses
         old_user_mgmt = server_version_check(cursor)
 
@@ -273,7 +270,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
             cursor.execute("SELECT authentication_string FROM user WHERE user = %s AND host = %s", (user,host))
         current_pass_hash = cursor.fetchone()
 
-        if encrypted and password:
+        if encrypted:
             if is_hash(password):
                 if current_pass_hash[0] != encrypted:
                     if old_user_mgmt:
@@ -283,7 +280,7 @@ def user_mod(cursor, user, host, password, encrypted, new_priv, append_privs):
                     changed = True
             else:
                 module.fail_json(msg="encrypted was specified however it does not appear to be a valid hash expecting: *SHA1(SHA1(your_password))")
-        elif password:
+        else:
             if old_user_mgmt:
                 cursor.execute("SELECT PASSWORD(%s)", (password,))
             else:
